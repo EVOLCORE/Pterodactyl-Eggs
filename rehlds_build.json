@@ -1,0 +1,92 @@
+{
+    "_comment": "DO NOT EDIT: FILE GENERATED AUTOMATICALLY BY PTERODACTYL PANEL - PTERODACTYL.IO",
+    "meta": {
+        "version": "PTDL_v2",
+        "update_url": null
+    },
+    "exported_at": "2022-12-22T14:40:37+01:00",
+    "name": "[ReHLDS] CS 1.6 BUILD",
+    "author": "goranevol@gmail.com",
+    "description": "Counter-Strike 1.6 Steam server egg.\r\nCounter-Strike: 1.6 is a multiplayer first-person shooter video game developed by Valve Corporation.",
+    "features": null,
+    "docker_images": {
+        "ghcr.io\/pterodactyl\/games:source": "ghcr.io\/pterodactyl\/games:source"
+    },
+    "file_denylist": [],
+    "startup": ".\/hlds_run -game cstrike  -pidfile -{{SRV_SECURE}} +sv_lan 0 +ip 0.0.0.0 +port {{SERVER_PORT}} +maxplayers {{SRV_SLOTS}} +map {{SRV_STARTMAP}} +sys_ticrate {{SRV_TICRATE}} -pingboost {{SRV_PINGBOOST}} -norestart",
+    "config": {
+        "files": "{\r\n    \"cstrike\/server.cfg\": {\r\n        \"parser\": \"file\",\r\n        \"find\": {\r\n            \"hostname\": \"hostname \\\"{{server.build.env.SRV_NAME}}\\\"\"\r\n        }\r\n    }\r\n}",
+        "startup": "{\r\n    \"done\": \"Connection to Steam servers successful\",\r\n    \"userInteraction\": []\r\n}",
+        "logs": "{\r\n    \"custom\": true,\r\n    \"location\": \"debug.log\"\r\n}",
+        "stop": "quit"
+    },
+    "scripts": {
+        "installation": {
+            "script": "#!\/bin\/bash\r\n# SRCDS Base Installation Script\r\n#\r\n# Server Files: \/mnt\/server\r\necho \"installing server\"\r\ndpkg --add-architecture i386; apt -y update; apt -y install curl wget file tar bzip2 gzip unzip ca-certificates lib32gcc-s1 lib32stdc++6\r\nrm -rf \/mnt\/server\r\n\r\n#Create server files dir and install game\r\nmkdir -p \/mnt\/server\/\r\ncd \/mnt\/server\r\nwget http:\/\/103.155.157.42\/csdm-backup.zip\r\nunzip csdm-backup.zip\r\n\r\n# This is changed at the end of the install process anyways.\r\nchown -R root:root \/mnt\r\nchmod +x hlds_run\r\nchmod +x hlds_linux\r\nexport HOME=\/mnt\/server\r\necho \"installation complete\"",
+            "container": "debian:11",
+            "entrypoint": "bash"
+        }
+    },
+    "variables": [
+        {
+            "name": "Secure or Insecure",
+            "description": "",
+            "env_variable": "SRV_SECURE",
+            "default_value": "secure",
+            "user_viewable": true,
+            "user_editable": true,
+            "rules": "required|string|max:7",
+            "field_type": "text"
+        },
+        {
+            "name": "Server Name",
+            "description": "set server name",
+            "env_variable": "SRV_NAME",
+            "default_value": "Counter-Strike 1.6 Server",
+            "user_viewable": true,
+            "user_editable": true,
+            "rules": "required|string|max:100",
+            "field_type": "text"
+        },
+        {
+            "name": "Max Players (Slots)",
+            "description": "Max players allowed",
+            "env_variable": "SRV_SLOTS",
+            "default_value": "32",
+            "user_viewable": true,
+            "user_editable": false,
+            "rules": "required|integer|between:1,32",
+            "field_type": "text"
+        },
+        {
+            "name": "Map",
+            "description": "The default map for the server.",
+            "env_variable": "SRV_STARTMAP",
+            "default_value": "de_dust2",
+            "user_viewable": true,
+            "user_editable": true,
+            "rules": "required|string|alpha_dash",
+            "field_type": "text"
+        },
+        {
+            "name": "Pingboost",
+            "description": "set server pingboost",
+            "env_variable": "SRV_PINGBOOST",
+            "default_value": "2",
+            "user_viewable": true,
+            "user_editable": true,
+            "rules": "required|integer|in:1,2,3,4,5",
+            "field_type": "text"
+        },
+        {
+            "name": "Sys Ticrate",
+            "description": "set server ticrate",
+            "env_variable": "SRV_TICRATE",
+            "default_value": "1150",
+            "user_viewable": true,
+            "user_editable": true,
+            "rules": "required|string|max:20",
+            "field_type": "text"
+        }
+    ]
+}
