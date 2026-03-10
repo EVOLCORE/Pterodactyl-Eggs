@@ -1,10 +1,10 @@
 {
-    "_comment": "DO NOT EDIT: FILE GENERATED AUTOMATICALLY BY Jexactyl PANEL - jexactyl.com",
+    "_comment": "DO NOT EDIT: FILE GENERATED AUTOMATICALLY BY PTERODACTYL PANEL - PTERODACTYL.IO",
     "meta": {
         "version": "PTDL_v2",
         "update_url": null
     },
-    "exported_at": "2024-12-25T19:15:50+01:00",
+    "exported_at": "2025-09-03T10:34:57+02:00",
     "name": "ReHLDS Linux Build",
     "author": "goranevol@gmail.com",
     "description": "Counter-Strike 1.6 Steam server egg.\r\nCounter-Strike: 1.6 is a multiplayer first-person shooter video game developed by Valve Corporation.",
@@ -13,16 +13,15 @@
         "ghcr.io\/pterodactyl\/games:source": "ghcr.io\/pterodactyl\/games:source"
     },
     "file_denylist": [],
-    "startup": ".\/hlds_run -game cstrike  -pidfile -{{SRV_SECURE}} +sv_lan 0 +ip 0.0.0.0 +port {{SERVER_PORT}} +maxplayers {{SRV_SLOTS}} +map {{SRV_STARTMAP}} -targetfps {{SRV_FPS}} -norestart",
+    "startup": ".\/hlds_run -game cstrike  -pidfile -{{SRV_SECURE}} +sv_lan 0 +ip 0.0.0.0 +port {{SERVER_PORT}} +maxplayers {{SRV_SLOTS}} +map {{SRV_STARTMAP}} -targetfps {{SRV_FPS}} -pingboost {{PINGBOOST}} -norestart",
     "config": {
         "files": "{\r\n    \"cstrike\/server.cfg\": {\r\n        \"parser\": \"file\",\r\n        \"find\": {\r\n            \"hostname\": \"hostname \\\"{{server.build.env.SRV_NAME}}\\\"\"\r\n        }\r\n    }\r\n}",
         "startup": "{\r\n    \"done\": \"Connection to Steam servers successful\",\r\n    \"userInteraction\": []\r\n}",
-        "logs": "{\r\n    \"custom\": true,\r\n    \"location\": \"debug.log\"\r\n}",
         "stop": "quit"
     },
     "scripts": {
         "installation": {
-            "script": "#!\/bin\/bash\r\n# SRCDS Base Installation Script\r\n#\r\n# Install required packages\r\ndpkg --add-architecture i386\r\napt -y update\r\napt -y install curl wget file tar bzip2 gzip jq unzip ca-certificates lib32gcc-s1 lib32stdc++6\r\napt-get clean\r\nrm -rf \/mnt\/server\r\n\r\n# Create server files directory and download game files\r\nmkdir -p \/mnt\/server\/\r\ncd \/mnt\/server || exit\r\nwget http:\/\/127.0.0.1\/csbuild\/rehlds_linux_server.zip\r\nif [[ $? -ne 0 ]]; then\r\n    echo \"Failed to download rehlds_linux_server.zip\"\r\n    exit 1\r\nfi\r\nunzip -q -o rehlds_linux_server.zip\r\nrm rehlds_linux_server.zip\r\n\r\n# Define function to download and install a GitHub release\r\nfunction install_github_release {\r\n  local repo=\"$1\"\r\n  local match=\"$2\"\r\n  local version=\"$3\"\r\n  local latest_json\r\n  local releases\r\n  local download_url\r\n\r\n  latest_json=$(curl --silent \"https:\/\/api.github.com\/repos\/$repo\/releases\/latest\")\r\n  releases=$(curl --silent \"https:\/\/api.github.com\/repos\/$repo\/releases\")\r\n\r\n  if [[ -z \"$version\" || \"$version\" == \"latest\" ]]; then\r\n    download_url=$(echo \"$latest_json\" | jq -r '.assets[].browser_download_url' | grep -i \"$match\")\r\n  else\r\n    local version_check\r\n    version_check=$(echo \"$releases\" | jq -r --arg version \"$version\" '.[] | select(.tag_name==$version) | .tag_name')\r\n    if [[ \"$version\" == \"$version_check\" ]]; then\r\n      download_url=$(echo \"$releases\" | jq -r --arg version \"$version\" '.[] | select(.tag_name==$version) | .assets[].browser_download_url' | grep -Ei \"$match\")\r\n    else\r\n      echo \"Unable to find release for version $version. Using latest release.\"\r\n      download_url=$(echo \"$latest_json\" | jq -r '.assets[].browser_download_url' | grep -i \"$match\")\r\n    fi\r\n  fi\r\n\r\n  cd \/tmp || exit\r\n  wget -N \"$download_url\" -O \"${match}.zip\"\r\n  if [[ $? -ne 0 ]]; then\r\n      echo \"Failed to download $download_url\"\r\n      exit 1\r\n  fi\r\n  unzip -q -o \"${match}.zip\"\r\n  cp -r \/tmp\/bin\/linux32\/* \/mnt\/server\r\n}\r\n\r\n# Check if INSTALL_COMPONENTS is not empty before installation\r\nif [[ -n \"$INSTALL_COMPONENTS\" ]]; then\r\n    # Install ReHLDS if specified\r\n    if [[ \"$INSTALL_COMPONENTS\" == *\"rehlds\"* ]]; then\r\n        install_github_release \"rehlds\/ReHLDS\" \"rehlds-bin\" \"$VERSION\"\r\n    fi\r\n\r\n    # Install ReGameDLL if specified\r\n    if [[ \"$INSTALL_COMPONENTS\" == *\"regamedll\"* ]]; then\r\n        install_github_release \"rehlds\/ReGameDLL_CS\" \"regamedll-bin\" \"$GAME_VERSION\"\r\n        cp -r \/tmp\/bin\/linux32\/cstrike\/* \/mnt\/server\/cstrike\r\n    fi\r\n\r\n    # Install ReAPI if specified\r\n    if [[ \"$INSTALL_COMPONENTS\" == *\"reapi\"* ]]; then\r\n        install_github_release \"rehlds\/ReAPI\" \"reapi-bin\" \"$REAPI_VERSION\"\r\n        cp -r \/tmp\/addons\/amxmodx\/modules\/* \/mnt\/server\/cstrike\/addons\/amxmodx\/modules\r\n    fi\r\nfi\r\n\r\n# Generate a random 32-character string for SteamIdHashSalt\r\nSTEAMID_HASH_SALT=$(head \/dev\/urandom | tr -dc A-Za-z0-9 | head -c 32)\r\n\r\n# Replace existing SteamIdHashSalt value in reunion.cfg\r\nsed -i \"s/^SteamIdHashSalt = .*/SteamIdHashSalt = $STEAMID_HASH_SALT/\" \/mnt\/server\/cstrike\/reunion.cfg\r\n\r\n# Set permissions and environment variables\r\ncd \/mnt\/server || exit\r\nchown -R root:root \/mnt\r\nchmod +x hlds_run\r\nchmod +x hlds_linux\r\nexport HOME=\/mnt\/server\r\nexport LD_LIBRARY_PATH=\/lib\/i386-linux-gnu:$LD_LIBRARY_PATH\r\n\r\nmkdir -p .steam\/sdk64\r\ncp -v linux64\/steamclient.so .steam\/sdk64\/steamclient.so\r\n\r\n# Set up 32-bit libraries\r\nmkdir -p .steam\/sdk32\r\ncp -v linux32\/steamclient.so .steam\/sdk32\/steamclient.so\r\n\r\n# Clean up temporary files\r\nrm -rf \/tmp\/bin \/tmp\/*.zip\r\n\r\necho \"Installation complete\"",
+            "script": "#!\/bin\/bash\n# Optimized SRCDS Installation Script with Retries\n\n# Configuration\nMAX_RETRIES=3\nBASE_URL=\"http:\/\/ggc-cs.com\/csbuild\"\nGITHUB_API=\"https:\/\/api.github.com\/repos\"\n\n# Install dependencies (no retries needed as these are from package repos)\ndpkg --add-architecture i386\napt-get update -y\napt-get install -y --no-install-recommends \\\n    curl wget file tar bzip2 gzip jq unzip ca-certificates \\\n    lib32gcc-s1 lib32stdc++6\napt-get clean\nrm -rf \/var\/lib\/apt\/lists\/*\n\n# Setup server directory\nrm -rf \/mnt\/server\nmkdir -p \/mnt\/server\ncd \/mnt\/server || exit 1\n\n# Download function with retries\ndownload_with_retry() {\n    local url=$1\n    local output=$2\n    local retries=0\n    \n    while [ $retries -lt $MAX_RETRIES ]; do\n        if wget -q -O \"$output\" \"$url\"; then\n            return 0\n        fi\n        ((retries++))\n        echo \"Retry $retries\/$MAX_RETRIES for $url\"\n        sleep 2\n    done\n    echo \"Failed to download $url after $MAX_RETRIES attempts\"\n    return 1\n}\n\n# Download and extract base files\nif ! download_with_retry \"$BASE_URL\/rehlds_linux_server.zip\" \"rehlds_linux_server.zip\"; then\n    exit 1\nfi\nunzip -q -o rehlds_linux_server.zip\nrm -f rehlds_linux_server.zip\n\n# Optimized GitHub release installer\ninstall_github_release() {\n    local repo=$1\n    local match=$2\n    local version=$3\n    local target_dir=$4\n    local retries=0\n    local download_url\n    \n    while [ $retries -lt $MAX_RETRIES ]; do\n        if [ -z \"$version\" ] || [ \"$version\" == \"latest\" ]; then\n            download_url=$(curl -sf \"$GITHUB_API\/$repo\/releases\/latest\" | \\\n                jq -r \".assets[] | select(.name | test(\\\"$match\\\"; \\\"i\\\")).browser_download_url\")\n        else\n            download_url=$(curl -sf \"$GITHUB_API\/$repo\/releases\" | \\\n                jq -r --arg version \"$version\" \\\n                '.[] | select(.tag_name == $version).assets[] | select(.name | test(\"'\"$match\"'\"; \"i\")).browser_download_url')\n        fi\n        \n        if [ -n \"$download_url\" ] && download_with_retry \"$download_url\" \"\/tmp\/${match}.zip\"; then\n            unzip -q -o \"\/tmp\/${match}.zip\" -d \/tmp\n            if [ -n \"$target_dir\" ]; then\n                cp -r \"\/tmp\/bin\/linux32\/$target_dir\"\/* \"\/mnt\/server\/$target_dir\/\"\n            else\n                cp -r \/tmp\/bin\/linux32\/* \/mnt\/server\/\n            fi\n            rm -f \"\/tmp\/${match}.zip\"\n            return 0\n        fi\n        ((retries++))\n        echo \"Retry $retries\/$MAX_RETRIES for $repo release\"\n        sleep 2\n    done\n    echo \"Failed to install $repo release after $MAX_RETRIES attempts\"\n    return 1\n}\n\n# Install components\nif [[ -n \"$INSTALL_COMPONENTS\" ]]; then\n    [[ \"$INSTALL_COMPONENTS\" == *\"rehlds\"* ]] && \\\n        install_github_release \"rehlds\/ReHLDS\" \"rehlds-bin\" \"$VERSION\"\n    \n    [[ \"$INSTALL_COMPONENTS\" == *\"regamedll\"* ]] && \\\n        install_github_release \"rehlds\/ReGameDLL_CS\" \"regamedll-bin\" \"$GAME_VERSION\" \"cstrike\"\n    \n    [[ \"$INSTALL_COMPONENTS\" == *\"reapi\"* ]] && \\\n        install_github_release \"rehlds\/ReAPI\" \"reapi-bin\" \"$REAPI_VERSION\" && \\\n        cp -r \/tmp\/addons\/amxmodx\/modules\/* \/mnt\/server\/cstrike\/addons\/amxmodx\/modules\/\nfi\n\n# SteamIdHashSalt generation (optimized one-liner)\nsed -i \"s\/^SteamIdHashSalt\\s*=.*\/SteamIdHashSalt = $(tr -dc 'A-Za-z0-9' <\/dev\/urandom | head -c 32)\/\" \\\n    \/mnt\/server\/cstrike\/reunion.cfg 2>\/dev\/null || \\\necho \"SteamIdHashSalt = $(tr -dc 'A-Za-z0-9' <\/dev\/urandom | head -c 32)\" >> \/mnt\/server\/cstrike\/reunion.cfg\n\n# ====== FastDL (only sv_downloadurl) ======\nFINAL_FASTDL=\"${FASTDL_URL}\/${P_SERVER_UUID}\/cstrike\/\"\nif grep -qE '^\\s*sv_downloadurl\\s*' \/mnt\/server\/cstrike\/server.cfg 2>\/dev\/null; then\n    sed -i \"s#^\\s*sv_downloadurl\\b.*#sv_downloadurl \\\"${FINAL_FASTDL}\\\"#\" \/mnt\/server\/cstrike\/server.cfg\nelse\n    echo \"sv_downloadurl \\\"${FINAL_FASTDL}\\\"\" >> \/mnt\/server\/cstrike\/server.cfg\nfi\n\n# Final setup\ncd \/mnt\/server || exit 1\nchmod +x hlds_{run,linux}\nexport HOME=\/mnt\/server\nexport LD_LIBRARY_PATH=\/lib\/i386-linux-gnu:$LD_LIBRARY_PATH\n\nmkdir -p .steam\/sdk32 .steam\/sdk64\n\n# Link steamclient.so for 32-bit\nif [ -f linux32\/steamclient.so ]; then\n    cp -f linux32\/steamclient.so .steam\/sdk32\/\nelif [ -f steamclient.so ]; then\n    cp -f steamclient.so .steam\/sdk32\/\nfi\n\n# Link steamclient.so for 64-bit\nif [ -f linux64\/steamclient.so ]; then\n    cp -f linux64\/steamclient.so .steam\/sdk64\/\nelif [ -f steamclient.so ]; then\n    cp -f steamclient.so .steam\/sdk64\/\nfi\n\n# Cleanup\nrm -rf \/tmp\/{bin,*.zip}\nchmod 750 \/mnt\/server\/\necho \"Installation complete\"",
             "container": "debian:12",
             "entrypoint": "bash"
         }
@@ -79,6 +78,16 @@
             "field_type": "text"
         },
         {
+            "name": "FastDL URL",
+            "description": "Enter your FastDL base URL (without trailing \/UUID\/cstrike\/). Example: http:\/\/fastdl.cs-down.me",
+            "env_variable": "FASTDL_URL",
+            "default_value": "http:\/\/fastdl.cs-down.me",
+            "user_viewable": true,
+            "user_editable": true,
+            "rules": "required|string|max:200",
+            "field_type": "text"
+        },
+        {
             "name": "ReHLDS Version",
             "description": "The version of ReHLDS to install, or 'latest' for the latest release.",
             "env_variable": "VERSION",
@@ -116,6 +125,16 @@
             "user_viewable": false,
             "user_editable": false,
             "rules": "required|string",
+            "field_type": "text"
+        },
+        {
+            "name": "Ping Boost",
+            "description": "Adjusts the server sleep policy to control CPU usage and FPS.\r\n0: (Default) Standard 1ms sleep. Minimal CPU usage.\r\n1: (Linux only) Uses setitimer for a 1ms sleep cycle.\r\n2: (Linux only) Uses poll instead of legacy select for a 1ms sleep.\r\n3: Original engine implementation (NET_Sleep_Timeout). Unchanged behavior.\r\n4: Aggressive boost. CPU sleeps for 1 microsecond, higher FPS. Linux and Windows.\r\n5: Maximum performance. Server thread yields instead of sleeping. 100% CPU core load.",
+            "env_variable": "PINGBOOST",
+            "default_value": "4",
+            "user_viewable": true,
+            "user_editable": false,
+            "rules": "required|integer|between:0,5",
             "field_type": "text"
         }
     ]
